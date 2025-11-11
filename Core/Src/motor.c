@@ -34,14 +34,14 @@ void stepBackward(int steps) {
   }
 }
 
-int abs(int x) {
+float absoluteValue(float x) {
 	if (x > 0) return x;
 	else return -x;
 }
 
 void stepDeg(int deg) {
-	const float stepsPerDeg = 5.6611f;	// calculated based on the specific motor used (11.375)
-	int steps = abs(deg) * stepsPerDeg;
+	const float stepsPerDeg = 5.6611f;	// calculated based on the specific motor used (11.375?)
+	int steps = (int)(absoluteValue(deg) * stepsPerDeg + 0.5f); // +0.5f to round to nearest in
 	if (deg > 0) {
 		stepForward(steps);
 	} else {

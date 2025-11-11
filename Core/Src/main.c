@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <string.h>
+#include "motor.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,21 +56,6 @@ volatile State state = MEASURE;
 volatile int micro_sec = 0;
 char output[64];
 
-volatile uint32_t *pwm_reg = &(TIM3->CCR3);
-
-uint8_t seq[8][4] = {
-  {1,0,0,0},
-  {1,1,0,0},
-  {0,1,0,0},
-  {0,1,1,0},
-  {0,0,1,0},
-  {0,0,1,1},
-  {0,0,0,1},
-  {1,0,0,1}
-};
-
-int forward = 1;
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -84,27 +70,6 @@ static void MX_TIM2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-void StepMotor(int step) {
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, seq[step][0]);
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, seq[step][1]);
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, seq[step][2]);
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, seq[step][3]);
-}
-
-void StepForward(int steps) {
-  for (int i = 0; i < steps; i++) {
-    StepMotor(i % 8);
-    HAL_Delay(2);
-  }
-}
-
-void StepBackward(int steps) {
-  for (int i = 0; i < steps; i++) {
-    StepMotor(7 - (i % 8));
-    HAL_Delay(2);
-  }
-}
 
 /* USER CODE END 0 */
 
@@ -159,9 +124,9 @@ int main(void)
 		 HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
 		 state = MEASURE;
 	  }
-	  StepForward(1365); // 120° forward
+	  stepForward(1365); // 120° forward
 	  HAL_Delay(500);
-	  StepBackward(1365); // 120° backward
+	  stepBackward(1365); // 120° backward
 	  HAL_Delay(500);
     /* USER CODE END WHILE */
 

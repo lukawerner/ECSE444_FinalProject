@@ -1,0 +1,5 @@
+../Core/Src/motor.c:13:6:stepMotor	32	static
+../Core/Src/motor.c:23:6:stepForward	24	static
+../Core/Src/motor.c:30:6:stepBackward	24	static
+../Core/Src/motor.c:37:7:absoluteValue	16	static
+../Core/Src/motor.c:42:6:stepDeg	24	static

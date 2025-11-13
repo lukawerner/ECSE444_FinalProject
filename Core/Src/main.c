@@ -56,6 +56,9 @@ volatile State state = MEASURE;
 volatile int micro_sec = 0;
 char output[64];
 
+int sweepDegree = 120;
+char clockwise = 1;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -118,16 +121,32 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  if (state == DISPLAY) {
-		 int x_cm = micro_sec/58;
-		 sprintf(output, "Distance read: %d cm\r\n", x_cm);
-		 HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
-		 state = MEASURE;
+	  if (clockwise) {
+		  for (int i = 0; i < sweepDegree; i += 2) {
+			  if (state == DISPLAY) {
+				  int x_cm = micro_sec/58;
+				  sprintf(output, "Distance read at angle %d: %d cm\r\n", i, x_cm);
+				  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
+				  state = MEASURE;
+			  }
+			  stepDeg(2);
+			  HAL_Delay(10);
+		  }
+		  clockwise = 0;
+	  } else {
+		  for (int i = sweepDegree; i > 0; i -= 2) {
+			  if (state == DISPLAY) {
+				  int x_cm = micro_sec/58;
+				  sprintf(output, "Distance read at angle %d: %d cm\r\n", i, x_cm);
+				  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
+				  state = MEASURE;
+			  }
+			  stepDeg(-2);
+			  HAL_Delay(10);
+		  }
+		  clockwise = 1;
 	  }
-	  stepForward(1365); // 120° forward
-	  HAL_Delay(500);
-	  stepBackward(1365); // 120° backward
-	  HAL_Delay(500);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

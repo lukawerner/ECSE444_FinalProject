@@ -1,0 +1,2 @@
+../Core/Src/stm32l4s5i_iot01_tsensor.c:50:10:BSP_TSENSOR_Init	16	static
+../Core/Src/stm32l4s5i_iot01_tsensor.c:75:7:BSP_TSENSOR_ReadTemp	8	static

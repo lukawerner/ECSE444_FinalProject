@@ -69,7 +69,7 @@ UART_HandleTypeDef huart1;
 /* USER CODE BEGIN PV */
 
 volatile State state = MEASURE;
-volatile int micro_sec = 0;
+volatile uint32_t micro_sec = 0;
 char output[64];
 
 int sweepDegree = 120;
@@ -93,7 +93,11 @@ static void MX_OCTOSPI1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+uint16_t getDistance(uint32_t time) {
+	float speed_of_sound = 0.0343f; // in centimeters per microsecond
+	uint16_t distance = ((float)time * speed_of_sound) / 2.0f + 0.5f; // divide by 2 due to round trip, +0.5f to round to nearest int
+	return distance;
+}
 /* USER CODE END 0 */
 
 /**
@@ -148,7 +152,7 @@ int main(void)
   for (int i = 0; i < sweepDegree; i += 2) {
 
 	  if(state == DISPLAY) {
-		  uint16_t x_cm = micro_sec / 58;
+		  uint16_t x_cm = getDistance(micro_sec);
 		  baselineData.distance = x_cm;
 	  } else {
 		  baselineData.distance = (uint16_t) 60000; // Not getting the correct distance
@@ -181,7 +185,7 @@ int main(void)
 	  if (clockwise) {
 		  for (int i = 0; i < sweepDegree; i += 2) {
 			  if (state == DISPLAY) {
-				  int x_cm = micro_sec / 58;
+				  int x_cm = getDistance(micro_sec);
 				  sprintf(output, "Distance read at angle %d: %d cm\r\n", i, x_cm);
 				  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
 				  state = MEASURE;
@@ -193,7 +197,7 @@ int main(void)
 	  } else {
 		  for (int i = sweepDegree; i > 0; i -= 2) {
 			  if (state == DISPLAY) {
-				  int x_cm = micro_sec/58;
+				  int x_cm = getDistance(micro_sec);
 				  sprintf(output, "Distance read at angle %d: %d cm\r\n", i, x_cm);
 				  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
 				  state = MEASURE;

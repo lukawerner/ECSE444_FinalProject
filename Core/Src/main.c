@@ -29,6 +29,8 @@
 
 #include "stm32l4s5i_iot01_qspi.h"
 #include "stm32l4s5i_iot01_tsensor.h"
+//#include "es_wifi.h"
+#include "wifi.h"
 
 /* USER CODE END Includes */
 
@@ -53,13 +55,19 @@ typedef struct {
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+#define WIFI_SSID     "VIRGIN184"
+#define WIFI_PASS     "25235A211337"
+#define WIFI_SECURITY ES_WIFI_SEC_WPA2
 
+ES_WIFIObject_t EsWifiObj; //WWC
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c2;
 
 OSPI_HandleTypeDef hospi1;
+
+SPI_HandleTypeDef hspi3;
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
@@ -87,6 +95,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_OCTOSPI1_Init(void);
+static void MX_SPI3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -130,6 +139,7 @@ int main(void)
   MX_TIM2_Init();
   MX_I2C2_Init();
   MX_OCTOSPI1_Init();
+  MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_1);
@@ -172,6 +182,26 @@ int main(void)
 	  BSP_QSPI_Read((uint8_t*)&readData, readAddress, sizeof(readData));
   }
 
+
+  ES_WIFI_Init(&EsWifiObj);
+
+  ES_WIFI_Connect(&EsWifiObj, WIFI_SSID, WIFI_PASS, WIFI_SECURITY);
+  ES_WIFI_Conn_t conn;
+
+  conn.Type = ES_WIFI_TCP_CONNECTION;
+  conn.Number = 0;                       // connection ID 0
+  conn.RemotePort = 5000;                // your laptop's server port
+  conn.RemoteIP[0] = 192;                // laptop IP, example: 192.168.1.10
+  conn.RemoteIP[1] = 168;
+  conn.RemoteIP[2] = 2;
+  conn.RemoteIP[3] = 12;
+
+  ES_WIFI_StartClientConnection(&EsWifiObj, &conn);
+  uint8_t msg[] = "Hello from STM32!\n";
+  uint16_t sentLen = 0;
+  ES_WIFI_SendData(&EsWifiObj, 0, msg, sizeof(msg)-1, &sentLen, 10000);
+
+//192.168.2.12
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -345,6 +375,46 @@ static void MX_OCTOSPI1_Init(void)
   /* USER CODE BEGIN OCTOSPI1_Init 2 */
 
   /* USER CODE END OCTOSPI1_Init 2 */
+
+}
+
+/**
+  * @brief SPI3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI3_Init(void)
+{
+
+  /* USER CODE BEGIN SPI3_Init 0 */
+
+  /* USER CODE END SPI3_Init 0 */
+
+  /* USER CODE BEGIN SPI3_Init 1 */
+
+  /* USER CODE END SPI3_Init 1 */
+  /* SPI3 parameter configuration*/
+  hspi3.Instance = SPI3;
+  hspi3.Init.Mode = SPI_MODE_MASTER;
+  hspi3.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi3.Init.DataSize = SPI_DATASIZE_8BIT;//SPI_DATASIZE_4BIT;
+  hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi3.Init.NSS = SPI_NSS_SOFT;
+  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi3.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi3.Init.CRCPolynomial = 7;
+  hspi3.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
+  hspi3.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  if (HAL_SPI_Init(&hspi3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI3_Init 2 */
+
+  /* USER CODE END SPI3_Init 2 */
 
 }
 
@@ -544,6 +614,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, IN1_Pin|IN2_Pin|IN3_Pin|IN4_Pin, GPIO_PIN_RESET);

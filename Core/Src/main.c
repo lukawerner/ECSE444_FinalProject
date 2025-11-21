@@ -30,6 +30,8 @@
 #include "stm32l4s5i_iot01_qspi.h"
 #include "stm32l4s5i_iot01_tsensor.h"
 
+#include "wifi.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -61,6 +63,8 @@ I2C_HandleTypeDef hi2c2;
 
 OSPI_HandleTypeDef hospi1;
 
+SPI_HandleTypeDef hspi3;
+
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
@@ -77,6 +81,10 @@ char clockwise = 1;
 
 uint32_t writeAddress = 0;
 
+WIFI_HandleTypeDef hwifi;
+char ssid[] = "TestLan";
+char passphrase[] = "12345678";
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -87,6 +95,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_OCTOSPI1_Init(void);
+static void MX_SPI3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -98,6 +107,21 @@ uint16_t getDistance(uint32_t time) {
 	uint16_t distance = ((float)time * speed_of_sound) / 2.0f + 0.5f; // divide by 2 due to round trip, +0.5f to round to nearest int
 	return distance;
 }
+
+static void WIFI_Init_main(){
+
+	hwifi.handle = &hspi3;
+	hwifi.ssid = ssid;
+	hwifi.passphrase = passphrase;
+	hwifi.securityType = WPA_MIXED;
+	hwifi.DHCP = SET;
+	hwifi.ipStatus = IP_V4;
+	hwifi.transportProtocol = WIFI_TCP_PROTOCOL;
+	hwifi.port = 8080;
+
+	WIFI_Init(&hwifi);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -134,6 +158,7 @@ int main(void)
   MX_TIM2_Init();
   MX_I2C2_Init();
   MX_OCTOSPI1_Init();
+  MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_1);
@@ -145,6 +170,18 @@ int main(void)
 
   sprintf(output, "Initializing\r\n");
   HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
+
+  // WiFi
+  WIFI_Init_main();
+  WIFI_StatusTypeDef status = WIFI_JoinNetwork(&hwifi);
+  if (status != WIFI_OK) {
+  	  sprintf(output, "Wi-Fi connection FAILED!\r\n");
+  	  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
+      while (1);
+  }
+  sprintf(output, "Wi-Fi connected successfully!\r\n");
+  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
+
 
   BSP_QSPI_Erase_Block(writeAddress); // Collecting baseline data for comparison
 
@@ -353,6 +390,46 @@ static void MX_OCTOSPI1_Init(void)
 }
 
 /**
+  * @brief SPI3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI3_Init(void)
+{
+
+  /* USER CODE BEGIN SPI3_Init 0 */
+
+  /* USER CODE END SPI3_Init 0 */
+
+  /* USER CODE BEGIN SPI3_Init 1 */
+
+  /* USER CODE END SPI3_Init 1 */
+  /* SPI3 parameter configuration*/
+  hspi3.Instance = SPI3;
+  hspi3.Init.Mode = SPI_MODE_MASTER;
+  hspi3.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi3.Init.DataSize = SPI_DATASIZE_16BIT;
+  hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi3.Init.NSS = SPI_NSS_SOFT;
+  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi3.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi3.Init.CRCPolynomial = 7;
+  hspi3.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
+  hspi3.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  if (HAL_SPI_Init(&hspi3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI3_Init 2 */
+
+  /* USER CODE END SPI3_Init 2 */
+
+}
+
+/**
   * @brief TIM2 Initialization Function
   * @param None
   * @retval None
@@ -548,9 +625,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, IN1_Pin|IN2_Pin|IN3_Pin|IN4_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOE, WIFI_RESET_Pin|WIFI_NSS_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12|GPIO_PIN_13, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : IN1_Pin IN2_Pin IN3_Pin IN4_Pin */
   GPIO_InitStruct.Pin = IN1_Pin|IN2_Pin|IN3_Pin|IN4_Pin;
@@ -558,6 +642,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : WIFI_RESET_Pin WIFI_NSS_Pin */
+  GPIO_InitStruct.Pin = WIFI_RESET_Pin|WIFI_NSS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PE10 PE11 PE12 PE13
                            PE14 PE15 */
@@ -568,6 +659,23 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   GPIO_InitStruct.Alternate = GPIO_AF10_OCTOSPIM_P1;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB12 PB13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : WIFI_CMD_DATA_READY_Pin */
+  GPIO_InitStruct.Pin = WIFI_CMD_DATA_READY_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(WIFI_CMD_DATA_READY_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

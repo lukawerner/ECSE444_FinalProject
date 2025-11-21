@@ -67,6 +67,13 @@ void Error_Handler(void);
 #define IN3_GPIO_Port GPIOA
 #define IN4_Pin GPIO_PIN_3
 #define IN4_GPIO_Port GPIOA
+#define WIFI_RESET_Pin GPIO_PIN_8
+#define WIFI_RESET_GPIO_Port GPIOE
+#define WIFI_NSS_Pin GPIO_PIN_0
+#define WIFI_NSS_GPIO_Port GPIOE
+#define WIFI_CMD_DATA_READY_Pin GPIO_PIN_1
+#define WIFI_CMD_DATA_READY_GPIO_Port GPIOE
+#define WIFI_CMD_DATA_READY_EXTI_IRQn EXTI1_IRQn
 
 /* USER CODE BEGIN Private defines */
 

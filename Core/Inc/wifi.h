@@ -131,6 +131,8 @@ WIFI_StatusTypeDef WIFI_WebServerHandleRequest(WIFI_HandleTypeDef* hwifi, char* 
 WIFI_StatusTypeDef WIFI_JoinNetwork(WIFI_HandleTypeDef* hwifi);
 WIFI_StatusTypeDef WIFI_MQTTClientInit(WIFI_HandleTypeDef* hwifi);
 WIFI_StatusTypeDef WIFI_MQTTPublish(WIFI_HandleTypeDef* hwifi, char* message, uint16_t sizeMessage);
+WIFI_StatusTypeDef WIFI_SetupSocket(WIFI_HandleTypeDef* hwifi);
+WIFI_StatusTypeDef WIFI_SendTCPData(WIFI_HandleTypeDef* hwifi, char* message);
 void trimstr(char* str, uint32_t strSize, char c);
 
 

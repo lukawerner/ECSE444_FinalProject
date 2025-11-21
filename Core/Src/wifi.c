@@ -462,6 +462,49 @@ WIFI_StatusTypeDef WIFI_MQTTPublish(WIFI_HandleTypeDef* hwifi, char* message, ui
 	return WIFI_OK;
 }
 
+WIFI_StatusTypeDef WIFI_SetupSocket(WIFI_HandleTypeDef* hwifi) {
+
+	int len = 0;
+
+	// Set socket number to 1
+	memset(wifiTxBuffer, 0, WIFI_TX_BUFFER_SIZE);
+	len = sprintf(wifiTxBuffer, "P0=1\r");
+	WIFI_SendATCommand(hwifi, wifiTxBuffer, len + 1, wifiRxBuffer, WIFI_RX_BUFFER_SIZE);
+
+	// Set protocol = TCP (0)
+	memset(wifiTxBuffer, 0, WIFI_TX_BUFFER_SIZE);
+	len = sprintf(wifiTxBuffer, "P1=0\r");
+	WIFI_SendATCommand(hwifi, wifiTxBuffer, len + 1, wifiRxBuffer, WIFI_RX_BUFFER_SIZE);
+
+    // Remote IP
+	memset(wifiTxBuffer, 0, WIFI_TX_BUFFER_SIZE);
+	len = sprintf(wifiTxBuffer, "P3=%s\r", hwifi->remoteIpAddress);
+	WIFI_SendATCommand(hwifi, wifiTxBuffer, len + 1, wifiRxBuffer, WIFI_RX_BUFFER_SIZE);
+
+	// Remote Port
+	memset(wifiTxBuffer, 0, WIFI_TX_BUFFER_SIZE);
+	len = sprintf(wifiTxBuffer, "P4=%u\r", hwifi->remotePort);
+	WIFI_SendATCommand(hwifi, wifiTxBuffer, len + 1, wifiRxBuffer, WIFI_RX_BUFFER_SIZE);
+
+	// Start client
+	memset(wifiTxBuffer, 0, WIFI_TX_BUFFER_SIZE);
+	len = sprintf(wifiTxBuffer, "P6=1\r");
+	WIFI_SendATCommand(hwifi, wifiTxBuffer, len + 1, wifiRxBuffer, WIFI_RX_BUFFER_SIZE);
+
+	return WIFI_OK;
+}
+
+WIFI_StatusTypeDef WIFI_SendTCPData(WIFI_HandleTypeDef* hwifi, char* message) {
+
+	memset(wifiTxBuffer, 0, WIFI_TX_BUFFER_SIZE);
+	int msgLength = strlen(message);
+	int headerLength = sprintf(wifiTxBuffer, "S3=%d\r", msgLength);
+	memcpy(wifiTxBuffer + headerLength, message, msgLength);
+	WIFI_SendATCommand(hwifi, wifiTxBuffer, headerLength + msgLength + 1, wifiRxBuffer, WIFI_RX_BUFFER_SIZE);
+
+	return WIFI_OK;
+}
+
 /**
   * @brief  Trims a given character from beginning and end of a c string.
   * @param  str: C string

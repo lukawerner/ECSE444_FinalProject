@@ -84,6 +84,9 @@ uint32_t writeAddress = 0;
 WIFI_HandleTypeDef hwifi;
 char ssid[] = "TestLan";
 char passphrase[] = "12345678";
+char remoteIpAddress[] = "192.168.1.102";
+
+int ATcmdLength = 0;
 
 /* USER CODE END PV */
 
@@ -118,6 +121,8 @@ static void WIFI_Init_main(){
 	hwifi.ipStatus = IP_V4;
 	hwifi.transportProtocol = WIFI_TCP_PROTOCOL;
 	hwifi.port = 8080;
+	snprintf(hwifi.remoteIpAddress, sizeof(hwifi.remoteIpAddress), "%s", remoteIpAddress);
+	hwifi.remotePort = 8080;
 
 	WIFI_Init(&hwifi);
 }
@@ -171,6 +176,8 @@ int main(void)
   sprintf(output, "Initializing\r\n");
   HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
 
+
+
   // WiFi
   WIFI_Init_main();
   WIFI_StatusTypeDef status = WIFI_JoinNetwork(&hwifi);
@@ -181,6 +188,18 @@ int main(void)
   }
   sprintf(output, "Wi-Fi connected successfully!\r\n");
   HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
+
+  sprintf(output, "IP: %s\r\n", hwifi.ipAddress);
+  HAL_UART_Transmit(&huart1, (uint8_t*)output, strlen(output), 1000);
+
+  WIFI_SetupSocket(&hwifi);
+
+  // Sending mock data
+  while (1) {
+	  WIFI_SendTCPData(&hwifi, "Temperature=25Distance=100cm\r");
+  }
+
+
 
 
   BSP_QSPI_Erase_Block(writeAddress); // Collecting baseline data for comparison

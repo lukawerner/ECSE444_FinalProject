@@ -55,8 +55,8 @@ typedef struct {
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-#define WIFI_SSID     "VIRGIN184"
-#define WIFI_PASS     "25235A211337"
+#define WIFI_SSID     "HongYi's Phone"//"VIRGIN184"
+#define WIFI_PASS     "22382296"//"25235A211337"
 #define WIFI_SECURITY ES_WIFI_SEC_WPA2
 
 ES_WIFIObject_t EsWifiObj; //WWC
@@ -182,12 +182,14 @@ int main(void)
 	  BSP_QSPI_Read((uint8_t*)&readData, readAddress, sizeof(readData));
   }
 
+  ES_WIFI_Status_t wifi_status;
 
-  ES_WIFI_Init(&EsWifiObj);
+  wifi_status = ES_WIFI_Init(&EsWifiObj);
 
-  ES_WIFI_Connect(&EsWifiObj, WIFI_SSID, WIFI_PASS, WIFI_SECURITY);
-  ES_WIFI_Conn_t conn;
+  ES_WIFI_Connect(&EsWifiObj, WIFI_SSID, WIFI_PASS, WIFI_SECURITY); //catch the return
+  //ES_WIFI_Conn_t conn;
 
+  /*
   conn.Type = ES_WIFI_TCP_CONNECTION;
   conn.Number = 0;                       // connection ID 0
   conn.RemotePort = 5000;                // your laptop's server port
@@ -195,11 +197,14 @@ int main(void)
   conn.RemoteIP[1] = 168;
   conn.RemoteIP[2] = 2;
   conn.RemoteIP[3] = 12;
-
-  ES_WIFI_StartClientConnection(&EsWifiObj, &conn);
-  uint8_t msg[] = "Hello from STM32!\n";
-  uint16_t sentLen = 0;
-  ES_WIFI_SendData(&EsWifiObj, 0, msg, sizeof(msg)-1, &sentLen, 10000);
+*/
+  uint8_t ipaddr[4];
+  wifi_status = ES_WIFI_GetIPAddress(&EsWifiObj, ipaddr, 4);
+  //ES_WIFI_GetIPAddress(&EsWifiobj, uint8_t *ipaddr, uint8_t IpAddrLength)
+  //ES_WIFI_StartClientConnection(&EsWifiObj, &conn);
+  //uint8_t msg[] = "Hello from STM32!\n";
+  //uint16_t sentLen = 0;
+  //ES_WIFI_SendData(&EsWifiObj, 0, msg, sizeof(msg)-1, &sentLen, 10000);
 
 //192.168.2.12
   /* USER CODE END 2 */
@@ -208,6 +213,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  //ES_WIFI_SendData(&EsWifiObj, 0, msg, sizeof(msg)-1, &sentLen, 10000);
+
 	  if (clockwise) {
 		  for (int i = 0; i < sweepDegree; i += 2) {
 			  if (state == DISPLAY) {
@@ -397,7 +404,7 @@ static void MX_SPI3_Init(void)
   hspi3.Instance = SPI3;
   hspi3.Init.Mode = SPI_MODE_MASTER;
   hspi3.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi3.Init.DataSize = SPI_DATASIZE_8BIT;//SPI_DATASIZE_4BIT;
+  hspi3.Init.DataSize = SPI_DATASIZE_4BIT;
   hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi3.Init.NSS = SPI_NSS_SOFT;
@@ -619,6 +626,12 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, IN1_Pin|IN2_Pin|IN3_Pin|IN4_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12|GPIO_PIN_13, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET);
+
   /*Configure GPIO pins : IN1_Pin IN2_Pin IN3_Pin IN4_Pin */
   GPIO_InitStruct.Pin = IN1_Pin|IN2_Pin|IN3_Pin|IN4_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -634,6 +647,26 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   GPIO_InitStruct.Alternate = GPIO_AF10_OCTOSPIM_P1;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB12 PB13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PE0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PE1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */

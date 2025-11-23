@@ -20,6 +20,8 @@ Core/Src/stm32l4s5i_iot01_tsensor.o: \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma_ex.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_cortex.h \
+ ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dac.h \
+ ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dac_ex.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_exti.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash_ex.h \
@@ -35,9 +37,9 @@ Core/Src/stm32l4s5i_iot01_tsensor.o: \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim_ex.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart_ex.h \
- /Users/tingyichen/STM32CubeIDE/workspace_1.19.0/ECSE_444_FinalProject/Drivers/Components/../Components/hts221/hts221.h \
- /Users/tingyichen/STM32CubeIDE/workspace_1.19.0/ECSE_444_FinalProject/Drivers/Components/../Components/hts221/../Common/hsensor.h \
- /Users/tingyichen/STM32CubeIDE/workspace_1.19.0/ECSE_444_FinalProject/Drivers/Components/../Components/hts221/../Common/tsensor.h
+ C:/Users/ASUS/Desktop/ECSE444_FinalProject/Drivers/Components/../Components/hts221/hts221.h \
+ C:/Users/ASUS/Desktop/ECSE444_FinalProject/Drivers/Components/../Components/hts221/../Common/hsensor.h \
+ C:/Users/ASUS/Desktop/ECSE444_FinalProject/Drivers/Components/../Components/hts221/../Common/tsensor.h
 ../Core/Inc/stm32l4s5i_iot01_tsensor.h:
 ../Core/Inc/stm32l4s5i_iot01.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal.h:
@@ -59,6 +61,8 @@ Core/Src/stm32l4s5i_iot01_tsensor.o: \
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma_ex.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_cortex.h:
+../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dac.h:
+../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dac_ex.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_exti.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash_ex.h:
@@ -74,6 +78,6 @@ Core/Src/stm32l4s5i_iot01_tsensor.o: \
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim_ex.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart_ex.h:
-/Users/tingyichen/STM32CubeIDE/workspace_1.19.0/ECSE_444_FinalProject/Drivers/Components/../Components/hts221/hts221.h:
-/Users/tingyichen/STM32CubeIDE/workspace_1.19.0/ECSE_444_FinalProject/Drivers/Components/../Components/hts221/../Common/hsensor.h:
-/Users/tingyichen/STM32CubeIDE/workspace_1.19.0/ECSE_444_FinalProject/Drivers/Components/../Components/hts221/../Common/tsensor.h:
+C:/Users/ASUS/Desktop/ECSE444_FinalProject/Drivers/Components/../Components/hts221/hts221.h:
+C:/Users/ASUS/Desktop/ECSE444_FinalProject/Drivers/Components/../Components/hts221/../Common/hsensor.h:
+C:/Users/ASUS/Desktop/ECSE444_FinalProject/Drivers/Components/../Components/hts221/../Common/tsensor.h:

@@ -21,6 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#define ARM_MATH_CM4
+#include "arm_math.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -59,6 +61,9 @@ typedef struct {
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+DAC_HandleTypeDef hdac1;
+DMA_HandleTypeDef hdma_dac1_ch1;
+
 I2C_HandleTypeDef hi2c2;
 
 OSPI_HandleTypeDef hospi1;
@@ -67,11 +72,16 @@ SPI_HandleTypeDef hspi3;
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-
+volatile float temp=0;
+uint16_t  sin_Value = 0;
+//uint16_t sin_Array[500];
+uint16_t c[19];
+volatile int s = 0;
 volatile State state = MEASURE;
 volatile uint32_t micro_sec = 0;
 char output[64];
@@ -82,9 +92,9 @@ char clockwise = 1;
 uint32_t writeAddress = 0;
 
 WIFI_HandleTypeDef hwifi;
-char ssid[] = "TestLan";
-char passphrase[] = "12345678";
-char remoteIpAddress[] = "192.168.1.102";
+char ssid[] = "VIRGIN184";
+char passphrase[] = "25235A211337";
+char remoteIpAddress[] = "192.168.2.12"; //"192.168.1.102";
 
 int ATcmdLength = 0;
 
@@ -93,12 +103,15 @@ int ATcmdLength = 0;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_OCTOSPI1_Init(void);
 static void MX_SPI3_Init(void);
+static void MX_DAC1_Init(void);
+static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -158,17 +171,21 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_TIM3_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   MX_I2C2_Init();
   MX_OCTOSPI1_Init();
   MX_SPI3_Init();
+  MX_DAC1_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
+  HAL_TIM_Base_Start(&htim4);
 
   BSP_TSENSOR_Init();
   BSP_QSPI_Init();
@@ -195,14 +212,21 @@ int main(void)
   WIFI_SetupSocket(&hwifi);
 
   // Sending mock data
-  while (1) {
+  /*while (1) {
 	  WIFI_SendTCPData(&hwifi, "Temperature=25Distance=100cm\r");
-  }
+  }*/
 
 
 
 
   BSP_QSPI_Erase_Block(writeAddress); // Collecting baseline data for comparison
+
+  //speaker sound array initializtion
+  for (int i = 0; i < 19; i ++) { //note C4
+  				  c[i] = (uint16_t) ( (arm_sin_f32( (float)sin_Value / 76.0f * 2.0f * PI ) + 1.0f) * 2000.0f );
+  				  sin_Value += 4;
+  		}
+
 
   ScanPoint baselineData;
   for (int i = 0; i < sweepDegree; i += 2) {
@@ -238,6 +262,17 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  temp = BSP_TSENSOR_ReadTemp();
+		  if (temp >= 10 && s == 0) { //hasn't start
+			 s=1;
+			 HAL_StatusTypeDef ss = HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*)c, 19, DAC_ALIGN_12B_R);
+		  }
+		  else if (temp < 10) {
+			  s=0;
+			  //turn off DMA and the speaker
+			 HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
+		  }
+
 	  if (clockwise) {
 		  for (int i = 0; i < sweepDegree; i += 2) {
 			  if (state == DISPLAY) {
@@ -319,6 +354,50 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief DAC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_DAC1_Init(void)
+{
+
+  /* USER CODE BEGIN DAC1_Init 0 */
+
+  /* USER CODE END DAC1_Init 0 */
+
+  DAC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN DAC1_Init 1 */
+
+  /* USER CODE END DAC1_Init 1 */
+
+  /** DAC Initialization
+  */
+  hdac1.Instance = DAC1;
+  if (HAL_DAC_Init(&hdac1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** DAC channel OUT1 config
+  */
+  sConfig.DAC_SampleAndHold = DAC_SAMPLEANDHOLD_DISABLE;
+  sConfig.DAC_Trigger = DAC_TRIGGER_T4_TRGO;
+  sConfig.DAC_HighFrequency = DAC_HIGH_FREQUENCY_INTERFACE_MODE_ABOVE_80MHZ;
+  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
+  sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_DISABLE;
+  sConfig.DAC_UserTrimming = DAC_TRIMMING_FACTORY;
+  if (HAL_DAC_ConfigChannel(&hdac1, &sConfig, DAC_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN DAC1_Init 2 */
+
+  /* USER CODE END DAC1_Init 2 */
+
 }
 
 /**
@@ -581,6 +660,51 @@ static void MX_TIM3_Init(void)
 }
 
 /**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 0;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 6000;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+
+}
+
+/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -625,6 +749,23 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMAMUX1_CLK_ENABLE();
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
 
 }
 

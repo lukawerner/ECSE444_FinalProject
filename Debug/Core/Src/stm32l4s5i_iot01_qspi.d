@@ -36,7 +36,7 @@ Core/Src/stm32l4s5i_iot01_qspi.o: ../Core/Src/stm32l4s5i_iot01_qspi.c \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim_ex.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart_ex.h \
- C:/Users/User/STM32CubeIDE/workspace_2.0.0/ECSE444_FinalProject/Drivers/Components/../Components/mx25r6435f/mx25r6435f.h
+ C:/Users/tahas/OneDrive\ -\ McGill\ University/Fall-2025/ECSE-444/Group\ Project/ECSE444_FinalProject/Drivers/Components/../Components/mx25r6435f/mx25r6435f.h
 ../Core/Inc/stm32l4s5i_iot01_qspi.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal.h:
 ../Core/Inc/stm32l4xx_hal_conf.h:
@@ -74,4 +74,4 @@ Core/Src/stm32l4s5i_iot01_qspi.o: ../Core/Src/stm32l4s5i_iot01_qspi.c \
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim_ex.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart_ex.h:
-C:/Users/User/STM32CubeIDE/workspace_2.0.0/ECSE444_FinalProject/Drivers/Components/../Components/mx25r6435f/mx25r6435f.h:
+C:/Users/tahas/OneDrive\ -\ McGill\ University/Fall-2025/ECSE-444/Group\ Project/ECSE444_FinalProject/Drivers/Components/../Components/mx25r6435f/mx25r6435f.h:

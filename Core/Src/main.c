@@ -86,15 +86,17 @@ volatile State state = MEASURE;
 volatile uint32_t micro_sec = 0;
 char output[64];
 
+uint32_t lastWifiTick = 0;
+
 int sweepDegree = 120;
 char clockwise = 1;
 
 uint32_t writeAddress = 0;
 
 WIFI_HandleTypeDef hwifi;
-char ssid[] = "VIRGIN184";
-char passphrase[] = "25235A211337";
-char remoteIpAddress[] = "192.168.2.12"; //"192.168.1.102";
+char ssid[] = "BELL204"; //VIRGIN184";
+char passphrase[] = "64F4DFCE57DD"; //"25235A211337";
+char remoteIpAddress[] = "192.168.2.234"; //"192.168.2.12"; //"192.168.1.102";
 
 int ATcmdLength = 0;
 
@@ -264,7 +266,21 @@ int main(void)
   {
 	  temp = BSP_TSENSOR_ReadTemp();
 		  if (temp >= 10 && s == 0) { //hasn't start
-			 s=1;
+			 s=0;
+
+			 uint32_t currWifiTick = HAL_GetTick();
+			 if (currWifiTick - lastWifiTick >= 2000) // sent every 2 seconds
+			 {
+				 lastWifiTick = currWifiTick;
+				 char message[16];
+				 snprintf(message, sizeof(message), "T %d\n", (int) temp);
+
+				 const char *debug_msg = "Sending a temperature packet\r\n";
+				 HAL_UART_Transmit(&huart1, (uint8_t *)debug_msg, strlen(debug_msg), 1000);
+
+				 WIFI_SendTCPData(&hwifi, message);
+			 }
+
 			 HAL_StatusTypeDef ss = HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*)c, 19, DAC_ALIGN_12B_R);
 		  }
 		  else if (temp < 10) {

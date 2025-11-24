@@ -28,3 +28,5 @@ class TCPServer(threading.Thread):
                     msg = data.decode().strip()
                     parsed = parse_message(msg)
                     print("Received:", parsed)
+
+                    self.queue.put(parsed)

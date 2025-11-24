@@ -5,7 +5,7 @@ import tkinter as tk
 from server.tcp_server import TCPServer
 from ui.radar_ui import RadarUI
 
-HOST = '192.168.1.100' # This is PC's ip address
+HOST = "192.168.2.234" #'192.168.1.100' # This is PC's ip address
 PORT = 8080 # Fix on both sides to be 8080
 
 
@@ -32,6 +32,6 @@ if __name__ == "__main__":
 
     root = tk.Tk()
 
-    threading.Thread(target=mock_data_thread, args=(q,), daemon=True).start()
+    #threading.Thread(target=mock_data_thread, args=(q,), daemon=True).start()
     app = RadarUI(root, q)
     root.mainloop()

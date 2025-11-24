@@ -50,4 +50,8 @@ Drivers/Components/stmpe1600 \
 Drivers/Components/stmpe811 \
 Drivers/Components/wm8994 \
 Drivers/STM32L4xx_HAL_Driver/Src \
+Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS \
+Middlewares/Third_Party/FreeRTOS/Source \
+Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F \
+Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang \
 

@@ -27,6 +27,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+
 
 #include "motor.h"
 
@@ -39,11 +41,6 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef enum {
-	MEASURE,
-	DISPLAY,
-} State;
-
 typedef struct {
     uint16_t angle;
     uint16_t distance;
@@ -53,7 +50,13 @@ typedef struct {
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define SINEWAVE_LENGTH 32
 
+enum {
+    SWEEP_DEGREE = 120,                         // Total sweep in degrees
+    STEP_DEGREE  = 2,                           // Degrees per step
+    STEPS        = SWEEP_DEGREE / STEP_DEGREE   // Number of points in a sweep
+};
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -81,30 +84,35 @@ osThreadId defaultTaskHandle;
 osThreadId tempTaskHandle;
 osThreadId scanTaskHandle;
 osThreadId transmitTaskHandle;
+osThreadId alarmTaskHandle;
+osMessageQId tempQueueHandle;
+osMessageQId scanDataQueueHandle;
+osSemaphoreId alarmSemaphoreHandle;
 /* USER CODE BEGIN PV */
-volatile float temp=0;
-uint16_t  sin_Value = 0;
-//uint16_t sin_Array[500];
-uint16_t c[19];
-volatile int s = 0;
-volatile State state = MEASURE;
-volatile uint32_t micro_sec = 0;
+const float32_t TEMP_THRESHOLD = 40;
+const uint32_t TEMP_READ_PERIOD = 3000; // milliseconds
+
+const uint32_t DIST_THRESHOLD = 10; // centimeters
+const uint32_t WINDOW_SIZE = 10;
+ScanPoint baselineData[STEPS];
+volatile uint8_t measuring = 0;
+volatile uint32_t micro_sec;
+
+static uint8_t alarmTriggered = 0;
+uint16_t sinewave[SINEWAVE_LENGTH];
+
 char output[64];
-
-uint32_t lastWifiTick = 0;
-
-int sweepDegree = 120;
-char clockwise = 1;
 
 uint32_t writeAddress = 0;
 
+uint32_t lastWifiTick = 0;
 WIFI_HandleTypeDef hwifi;
 char ssid[] = "BELL204"; //VIRGIN184";
 char passphrase[] = "64F4DFCE57DD"; //"25235A211337";
 char remoteIpAddress[] = "192.168.2.234"; //"192.168.2.12"; //"192.168.1.102";
+uint8_t WIFI_connection = 1;
 
-int ATcmdLength = 0;
-
+const uint32_t TIMEOUT = 5000;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -120,9 +128,10 @@ static void MX_SPI3_Init(void);
 static void MX_DAC1_Init(void);
 static void MX_TIM4_Init(void);
 void StartDefaultTask(void const * argument);
-void StartTask02(void const * argument);
-void StartTask03(void const * argument);
-void StartTask04(void const * argument);
+void StartTempTask(void const * argument);
+void StartScanTask(void const * argument);
+void StartTransmitTask(void const * argument);
+void StartAlarmTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -130,26 +139,51 @@ void StartTask04(void const * argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void LUT_sine_builder(uint16_t sinewave[], uint32_t length) {
+  float32_t max = 2.0f/3.0f * 4095.0f; // 2730 is 2/3 of the max 12 bit unsigned integer, 4095
+  for (int i = 0; i<length; i++) {
+    float32_t angle = 2.0f * PI * i/(float32_t) length;
+    float32_t sine = arm_sin_f32(angle); // varies from -1 to 1
+    sine = (sine + 1.0f) / 2.0f; // varies from  0 to 1
+    sine = max * sine; // varies from 0 to 2730
+    sinewave[i] =  (uint16_t)sine;
+  }
+}
+
 uint16_t getDistance(uint32_t time) {
-	float speed_of_sound = 0.0343f; // in centimeters per microsecond
-	uint16_t distance = ((float)time * speed_of_sound) / 2.0f + 0.5f; // divide by 2 due to round trip, +0.5f to round to nearest int
-	return distance;
+  float speed_of_sound = 0.0343f; // in centimeters per microsecond
+  uint16_t distance = ((float)time * speed_of_sound) / 2.0f + 0.5f; // divide by 2 due to round trip, +0.5f to round to nearest int
+  return distance;
+}
+
+uint16_t take_samples() {
+  uint32_t sum = 0;
+  for (uint32_t i = 0; i < WINDOW_SIZE; i++) {
+    measuring = 1;
+    uint32_t start_time = HAL_GetTick();
+    while (measuring && HAL_GetTick() - start_time < TIMEOUT) {
+      taskYIELD();  // let other tasks run
+    }
+    uint16_t x_cm = getDistance(micro_sec);
+    sum += x_cm;
+  }
+  uint16_t avg = (float)sum / (float)WINDOW_SIZE + 0.5f;
+  return avg;
 }
 
 static void WIFI_Init_main(){
+  hwifi.handle = &hspi3;
+  hwifi.ssid = ssid;
+  hwifi.passphrase = passphrase;
+  hwifi.securityType = WPA_MIXED;
+  hwifi.DHCP = SET;
+  hwifi.ipStatus = IP_V4;
+  hwifi.transportProtocol = WIFI_TCP_PROTOCOL;
+  hwifi.port = 8080;
+  snprintf(hwifi.remoteIpAddress, sizeof(hwifi.remoteIpAddress), "%s", remoteIpAddress);
+  hwifi.remotePort = 8080;
 
-	hwifi.handle = &hspi3;
-	hwifi.ssid = ssid;
-	hwifi.passphrase = passphrase;
-	hwifi.securityType = WPA_MIXED;
-	hwifi.DHCP = SET;
-	hwifi.ipStatus = IP_V4;
-	hwifi.transportProtocol = WIFI_TCP_PROTOCOL;
-	hwifi.port = 8080;
-	snprintf(hwifi.remoteIpAddress, sizeof(hwifi.remoteIpAddress), "%s", remoteIpAddress);
-	hwifi.remotePort = 8080;
-
-	WIFI_Init(&hwifi);
+  WIFI_Init(&hwifi);
 }
 
 /* USER CODE END 0 */
@@ -203,76 +237,62 @@ int main(void)
   BSP_QSPI_Init();
 
   sprintf(output, "Initializing\r\n");
-  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
+  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
 
 
 
   // WiFi
   WIFI_Init_main();
-  WIFI_StatusTypeDef status = WIFI_JoinNetwork(&hwifi);
-  if (status != WIFI_OK) {
-  	  sprintf(output, "Wi-Fi connection FAILED!\r\n");
-  	  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
-      while (1);
+  if (WIFI_JoinNetwork(&hwifi) != WIFI_OK) {
+    sprintf(output, "Wi-Fi connection FAILED!\r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
+    WIFI_connection = 0;
   }
   sprintf(output, "Wi-Fi connected successfully!\r\n");
-  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
+  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
 
   sprintf(output, "IP: %s\r\n", hwifi.ipAddress);
-  HAL_UART_Transmit(&huart1, (uint8_t*)output, strlen(output), 1000);
+  HAL_UART_Transmit(&huart1, (uint8_t*)output, strlen(output), HAL_MAX_DELAY);
 
-  WIFI_SetupSocket(&hwifi);
-
-  // Sending mock data
-  /*while (1) {
-	  WIFI_SendTCPData(&hwifi, "Temperature=25Distance=100cm\r");
-  }*/
-
-
-
+  if (WIFI_connection && WIFI_SetupSocket(&hwifi) != WIFI_OK) {
+    sprintf(output, "Wi-Fi socket FAILED!\r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
+    WIFI_connection = 0;
+  }
 
   BSP_QSPI_Erase_Block(writeAddress); // Collecting baseline data for comparison
 
-  //speaker sound array initializtion
-  for (int i = 0; i < 19; i ++) { //note C4
-  				  c[i] = (uint16_t) ( (arm_sin_f32( (float)sin_Value / 76.0f * 2.0f * PI ) + 1.0f) * 2000.0f );
-  				  sin_Value += 4;
-  		}
+  //speaker sound array initialization
+  LUT_sine_builder(sinewave, SINEWAVE_LENGTH);
 
+  // gather baseline room data
+  for (int i = 0; i < STEPS; i++) {
+      HAL_Delay(10);
+      baselineData[i].distance = take_samples();
+      baselineData[i].angle = STEP_DEGREE * i;
 
-  ScanPoint baselineData;
-  for (int i = 0; i < sweepDegree; i += 2) {
+      stepDeg(STEP_DEGREE);
 
-	  if(state == DISPLAY) {
-		  uint16_t x_cm = getDistance(micro_sec);
-		  baselineData.distance = x_cm;
-	  } else {
-		  baselineData.distance = (uint16_t) 60000; // Not getting the correct distance
-	  }
-	  baselineData.angle = (uint16_t) i;
-
-	  stepDeg(2);
-	  HAL_Delay(10);
-
-	  BSP_QSPI_Write((uint8_t*)&baselineData, writeAddress, sizeof(baselineData)); // Write to FLASH
-	  writeAddress += sizeof(baselineData);
+      BSP_QSPI_Write((uint8_t*)&baselineData[i], writeAddress, sizeof(ScanPoint)); // Write to FLASH
+      writeAddress += sizeof(ScanPoint);
   }
-
-  for (int i = 0; i < sweepDegree; i += 2) { // Returning to the origin
-	  stepDeg(-2);
-	  HAL_Delay(10);
-  }
+  stepDeg(-SWEEP_DEGREE); // return to starting point
+  HAL_Delay(10);
 
   ScanPoint readData; // Read the baseline data from flash
   for (uint32_t readAddress = 0x0; readAddress < writeAddress; readAddress += sizeof(readData)) {
-	  BSP_QSPI_Read((uint8_t*)&readData, readAddress, sizeof(readData));
+    BSP_QSPI_Read((uint8_t*)&readData, readAddress, sizeof(readData));
   }
-
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
+
+  /* Create the semaphores(s) */
+  /* definition and creation of alarmSemaphore */
+  osSemaphoreDef(alarmSemaphore);
+  alarmSemaphoreHandle = osSemaphoreCreate(osSemaphore(alarmSemaphore), 1);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -281,6 +301,15 @@ int main(void)
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
+
+  /* Create the queue(s) */
+  /* definition and creation of tempQueue */
+  osMessageQDef(tempQueue, 16, uint16_t);
+  tempQueueHandle = osMessageCreate(osMessageQ(tempQueue), NULL);
+
+  /* definition and creation of scanDataQueue */
+  osMessageQDef(scanDataQueue, 16, ScanPoint);
+  scanDataQueueHandle = osMessageCreate(osMessageQ(scanDataQueue), NULL);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -292,16 +321,20 @@ int main(void)
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* definition and creation of tempTask */
-  osThreadDef(tempTask, StartTask02, osPriorityAboveNormal, 0, 128);
+  osThreadDef(tempTask, StartTempTask, osPriorityAboveNormal, 0, 128);
   tempTaskHandle = osThreadCreate(osThread(tempTask), NULL);
 
   /* definition and creation of scanTask */
-  osThreadDef(scanTask, StartTask03, osPriorityNormal, 0, 128);
+  osThreadDef(scanTask, StartScanTask, osPriorityNormal, 0, 128);
   scanTaskHandle = osThreadCreate(osThread(scanTask), NULL);
 
   /* definition and creation of transmitTask */
-  osThreadDef(transmitTask, StartTask04, osPriorityAboveNormal, 0, 128);
+  osThreadDef(transmitTask, StartTransmitTask, osPriorityAboveNormal, 0, 128);
   transmitTaskHandle = osThreadCreate(osThread(transmitTask), NULL);
+
+  /* definition and creation of alarmTask */
+  osThreadDef(alarmTask, StartAlarmTask, osPriorityHigh, 0, 128);
+  alarmTaskHandle = osThreadCreate(osThread(alarmTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -316,57 +349,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  temp = BSP_TSENSOR_ReadTemp();
-		  if (temp >= 10 && s == 0) { //hasn't start
-			 s=0;
-
-			 uint32_t currWifiTick = HAL_GetTick();
-			 if (currWifiTick - lastWifiTick >= 2000) // sent every 2 seconds
-			 {
-				 lastWifiTick = currWifiTick;
-				 char message[16];
-				 snprintf(message, sizeof(message), "T %d\n", (int) temp);
-
-				 const char *debug_msg = "Sending a temperature packet\r\n";
-				 HAL_UART_Transmit(&huart1, (uint8_t *)debug_msg, strlen(debug_msg), 1000);
-
-				 WIFI_SendTCPData(&hwifi, message);
-			 }
-
-			 HAL_StatusTypeDef ss = HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*)c, 19, DAC_ALIGN_12B_R);
-		  }
-		  else if (temp < 10) {
-			  s=0;
-			  //turn off DMA and the speaker
-			 HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
-		  }
-
-	  if (clockwise) {
-		  for (int i = 0; i < sweepDegree; i += 2) {
-			  if (state == DISPLAY) {
-				  int x_cm = getDistance(micro_sec);
-				  sprintf(output, "Distance read at angle %d: %d cm\r\n", i, x_cm);
-				  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
-				  state = MEASURE;
-			  }
-			  stepDeg(2);
-			  HAL_Delay(10);
-		  }
-		  clockwise = 0;
-	  } else {
-		  for (int i = sweepDegree; i > 0; i -= 2) {
-			  if (state == DISPLAY) {
-				  int x_cm = getDistance(micro_sec);
-				  sprintf(output, "Distance read at angle %d: %d cm\r\n", i, x_cm);
-				  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), 10000);
-				  state = MEASURE;
-			  }
-			  stepDeg(-2);
-			  HAL_Delay(10);
-		  }
-		  clockwise = 1;
-	  }
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -716,6 +698,10 @@ static void MX_TIM3_Init(void)
   sConfigOC.Pulse = 10;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
   if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
   {
     Error_Handler();
@@ -850,10 +836,10 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
-  __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, IN1_Pin|IN2_Pin|IN3_Pin|IN4_Pin, GPIO_PIN_RESET);
@@ -863,6 +849,12 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12|GPIO_PIN_13, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : PB_Pin */
+  GPIO_InitStruct.Pin = PB_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(PB_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : IN1_Pin IN2_Pin IN3_Pin IN4_Pin */
   GPIO_InitStruct.Pin = IN1_Pin|IN2_Pin|IN3_Pin|IN4_Pin;
@@ -911,14 +903,17 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  if (GPIO_Pin == PB_Pin) {
+    HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
+    alarmTriggered = 0;
+  }
+}
+
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
-	if (htim->Channel!=HAL_TIM_ACTIVE_CHANNEL_2) {
-		return;
-	}
-	if ((htim->Instance == TIM2) && (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)) {
-		micro_sec = TIM2->CCR2;
-		state = DISPLAY;
-	}
+  if ((htim->Instance == TIM2) && (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)) {
+    micro_sec = TIM2->CCR2;
+  }
 }
 /* USER CODE END 4 */
 
@@ -940,58 +935,137 @@ void StartDefaultTask(void const * argument)
   /* USER CODE END 5 */
 }
 
-/* USER CODE BEGIN Header_StartTask02 */
+/* USER CODE BEGIN Header_StartTempTask */
 /**
 * @brief Function implementing the tempTask thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartTask02 */
-void StartTask02(void const * argument)
+/* USER CODE END Header_StartTempTask */
+void StartTempTask(void const * argument)
 {
-  /* USER CODE BEGIN StartTask02 */
+  /* USER CODE BEGIN StartTempTask */
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    osDelay(TEMP_READ_PERIOD);
+    uint16_t temp = BSP_TSENSOR_ReadTemp();
+    if (xQueueSend(tempQueueHandle, &temp, 0) != pdPASS) {
+      // edge case if queue is full, trash oldest reading
+      uint16_t oldest;
+      xQueueReceive(tempQueueHandle, &oldest, 0);
+
+      xQueueSend(tempQueueHandle, &temp, 0);
+    }
+
+    if (!alarmTriggered && temp > TEMP_THRESHOLD) {
+      alarmTriggered = 1;
+      xSemaphoreGive(alarmSemaphoreHandle);
+    }
   }
-  /* USER CODE END StartTask02 */
+  /* USER CODE END StartTempTask */
 }
 
-/* USER CODE BEGIN Header_StartTask03 */
+/* USER CODE BEGIN Header_StartScanTask */
 /**
 * @brief Function implementing the scanTask thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartTask03 */
-void StartTask03(void const * argument)
+/* USER CODE END Header_StartScanTask */
+void StartScanTask(void const * argument)
 {
-  /* USER CODE BEGIN StartTask03 */
+  /* USER CODE BEGIN StartScanTask */
+  int i = 0;
+  int direction = 1;
+
+  ScanPoint scanData;
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    osDelay(10); // allow motor to settle
+    scanData.angle = i * STEP_DEGREE;
+    scanData.distance = take_samples();
+
+    if (xQueueSend(scanDataQueueHandle, &scanData, 0) != pdPASS) {
+      // edge case if queue is full, trash oldest reading
+      uint16_t oldest;
+      xQueueReceive(scanDataQueueHandle, &oldest, 0);
+
+      xQueueSend(scanDataQueueHandle, &scanData, 0);
+    }
+
+    if (!alarmTriggered && abs(scanData.distance - baselineData[i].distance) > DIST_THRESHOLD) {
+      alarmTriggered = 1;
+      xSemaphoreGive(alarmSemaphoreHandle);
+    }
+
+    stepDeg(direction * STEP_DEGREE);
+
+    if (i == STEPS - 1) {
+      direction = -1;
+    } else if (i == 0) {
+      direction = 1;
+    }
+    i += direction;
   }
-  /* USER CODE END StartTask03 */
+  /* USER CODE END StartScanTask */
 }
 
-/* USER CODE BEGIN Header_StartTask04 */
+/* USER CODE BEGIN Header_StartTransmitTask */
 /**
 * @brief Function implementing the transmitTask thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartTask04 */
-void StartTask04(void const * argument)
+/* USER CODE END Header_StartTransmitTask */
+void StartTransmitTask(void const * argument)
 {
-  /* USER CODE BEGIN StartTask04 */
+  /* USER CODE BEGIN StartTransmitTask */
+  uint16_t tempData;
+  ScanPoint scanData;
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    osDelay(5);
+    if (xQueueReceive(tempQueueHandle, &tempData, 0) == pdPASS) {
+      sprintf(output, "TEMP: %u\r\n", tempData);
+      HAL_UART_Transmit(&huart1, (uint8_t*)output, strlen(output), HAL_MAX_DELAY);
+
+      if (WIFI_connection) {
+
+      }
+    }
+
+    if (xQueueReceive(scanDataQueueHandle, &scanData, 0)== pdPASS) {
+      sprintf(output, "angle: %u, distance: %u\r\n", scanData.angle, scanData.distance);
+      HAL_UART_Transmit(&huart1, (uint8_t*)output, strlen(output), HAL_MAX_DELAY);
+      if (WIFI_connection) {
+
+      }
+    }
   }
-  /* USER CODE END StartTask04 */
+  /* USER CODE END StartTransmitTask */
+}
+
+/* USER CODE BEGIN Header_StartAlarmTask */
+/**
+* @brief Function implementing the alarmTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartAlarmTask */
+void StartAlarmTask(void const * argument)
+{
+  /* USER CODE BEGIN StartAlarmTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    if(xSemaphoreTake(alarmSemaphoreHandle, portMAX_DELAY) == pdPASS){
+      HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*)sinewave, SINEWAVE_LENGTH, DAC_ALIGN_12B_R);
+    }
+  }
+  /* USER CODE END StartAlarmTask */
 }
 
 /**
@@ -1012,7 +1086,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
+  if (htim->Instance == TIM2) {
 
+  }
   /* USER CODE END Callback 1 */
 }
 

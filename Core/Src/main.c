@@ -92,14 +92,15 @@ osSemaphoreId alarmSemaphoreHandle;
 const float32_t TEMP_THRESHOLD = 40;
 const uint32_t TEMP_READ_PERIOD = 3000; // milliseconds
 
-const uint32_t DIST_THRESHOLD = 10; // centimeters
-const uint32_t WINDOW_SIZE = 10;
+const uint32_t DIST_THRESHOLD = 5; // centimeters
+const uint32_t WINDOW_SIZE = 3;
 ScanPoint baselineData[STEPS];
 volatile uint8_t measuring = 0;
 volatile uint32_t micro_sec;
 
 static uint8_t alarmTriggered = 0;
 uint16_t sinewave[SINEWAVE_LENGTH];
+uint8_t intruder_detected = 0;
 
 char output[64];
 
@@ -107,9 +108,9 @@ uint32_t writeAddress = 0;
 
 uint32_t lastWifiTick = 0;
 WIFI_HandleTypeDef hwifi;
-char ssid[] = "BELL204"; //VIRGIN184";
-char passphrase[] = "64F4DFCE57DD"; //"25235A211337";
-char remoteIpAddress[] = "192.168.2.234"; //"192.168.2.12"; //"192.168.1.102";
+char ssid[] = "TestLan"; //VIRGIN184";
+char passphrase[] = "12345678"; //"25235A211337";
+char remoteIpAddress[] = "192.168.1.100"; //"192.168.2.12"; //"192.168.1.102";
 uint8_t WIFI_connection = 1;
 
 const uint32_t TIMEOUT = 5000;
@@ -163,6 +164,20 @@ uint16_t take_samples() {
     uint32_t start_time = HAL_GetTick();
     while (measuring && HAL_GetTick() - start_time < TIMEOUT) {
       taskYIELD();  // let other tasks run
+    }
+    uint16_t x_cm = getDistance(micro_sec);
+    sum += x_cm;
+  }
+  uint16_t avg = (float)sum / (float)WINDOW_SIZE + 0.5f;
+  return avg;
+}
+
+uint16_t take_samples_calibration() {
+  uint32_t sum = 0;
+  for (uint32_t i = 0; i < WINDOW_SIZE; i++) {
+    measuring = 1;
+    uint32_t start_time = HAL_GetTick();
+    while (measuring && HAL_GetTick() - start_time < TIMEOUT) {
     }
     uint16_t x_cm = getDistance(micro_sec);
     sum += x_cm;
@@ -268,11 +283,10 @@ int main(void)
   // gather baseline room data
   for (int i = 0; i < STEPS; i++) {
       HAL_Delay(10);
-      baselineData[i].distance = take_samples();
+      baselineData[i].distance = take_samples_calibration();
       baselineData[i].angle = STEP_DEGREE * i;
 
       stepDeg(STEP_DEGREE);
-
       BSP_QSPI_Write((uint8_t*)&baselineData[i], writeAddress, sizeof(ScanPoint)); // Write to FLASH
       writeAddress += sizeof(ScanPoint);
   }
@@ -913,6 +927,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
   if ((htim->Instance == TIM2) && (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)) {
     micro_sec = TIM2->CCR2;
+    measuring = 0;
   }
 }
 /* USER CODE END 4 */
@@ -995,9 +1010,10 @@ void StartScanTask(void const * argument)
       xQueueSend(scanDataQueueHandle, &scanData, 0);
     }
 
-    if (!alarmTriggered && abs(scanData.distance - baselineData[i].distance) > DIST_THRESHOLD) {
+    if (abs(scanData.distance - baselineData[i].distance) > DIST_THRESHOLD) {
       alarmTriggered = 1;
       xSemaphoreGive(alarmSemaphoreHandle);
+      intruder_detected = 1;
     }
 
     stepDeg(direction * STEP_DEGREE);
@@ -1033,7 +1049,8 @@ void StartTransmitTask(void const * argument)
       HAL_UART_Transmit(&huart1, (uint8_t*)output, strlen(output), HAL_MAX_DELAY);
 
       if (WIFI_connection) {
-
+      	snprintf(output, sizeof(output), "T %d\n", (int)tempData);
+      	WIFI_SendTCPData(&hwifi, output);
       }
     }
 
@@ -1042,6 +1059,14 @@ void StartTransmitTask(void const * argument)
       HAL_UART_Transmit(&huart1, (uint8_t*)output, strlen(output), HAL_MAX_DELAY);
       if (WIFI_connection) {
 
+				if (intruder_detected) {
+					snprintf(output, sizeof(output), "I %d %d\n", (int)scanData.angle, (int)scanData.distance);
+					WIFI_SendTCPData(&hwifi, output);
+					intruder_detected = 0;
+				} else {
+					snprintf(output, sizeof(output), "N %d\n", (int)scanData.angle);
+					WIFI_SendTCPData(&hwifi, output);
+				}
       }
     }
   }

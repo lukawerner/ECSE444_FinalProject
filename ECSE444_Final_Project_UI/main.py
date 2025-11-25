@@ -5,7 +5,7 @@ import tkinter as tk
 from server.tcp_server import TCPServer
 from ui.radar_ui import RadarUI
 
-HOST = "192.168.2.234" #'192.168.1.100' # This is PC's ip address
+HOST = "192.168.2.12" #"192.168.2.234" #'192.168.1.100' # This is PC's ip address
 PORT = 8080 # Fix on both sides to be 8080
 
 

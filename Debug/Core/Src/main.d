@@ -54,11 +54,11 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h \
  ../Core/Inc/arm_math.h ../Drivers/CMSIS/Include/cmsis_compiler.h \
  ../Core/Inc/motor.h ../Core/Inc/stm32l4s5i_iot01_qspi.h \
- C:/Users/tahas/OneDrive\ -\ McGill\ University/Fall-2025/ECSE-444/Group\ Project/ECSE444_FinalProject/Drivers/Components/../Components/mx25r6435f/mx25r6435f.h \
+ C:/Users/ASUS/Desktop/ECSE444_FinalProject/Drivers/Components/../Components/mx25r6435f/mx25r6435f.h \
  ../Core/Inc/stm32l4s5i_iot01_tsensor.h ../Core/Inc/stm32l4s5i_iot01.h \
- C:/Users/tahas/OneDrive\ -\ McGill\ University/Fall-2025/ECSE-444/Group\ Project/ECSE444_FinalProject/Drivers/Components/../Components/hts221/hts221.h \
- C:/Users/tahas/OneDrive\ -\ McGill\ University/Fall-2025/ECSE-444/Group\ Project/ECSE444_FinalProject/Drivers/Components/../Components/hts221/../Common/hsensor.h \
- C:/Users/tahas/OneDrive\ -\ McGill\ University/Fall-2025/ECSE-444/Group\ Project/ECSE444_FinalProject/Drivers/Components/../Components/hts221/../Common/tsensor.h \
+ C:/Users/ASUS/Desktop/ECSE444_FinalProject/Drivers/Components/../Components/hts221/hts221.h \
+ C:/Users/ASUS/Desktop/ECSE444_FinalProject/Drivers/Components/../Components/hts221/../Common/hsensor.h \
+ C:/Users/ASUS/Desktop/ECSE444_FinalProject/Drivers/Components/../Components/hts221/../Common/tsensor.h \
  ../Core/Inc/wifi.h ../Core/Inc/main.h
 ../Core/Inc/main.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal.h:
@@ -118,11 +118,11 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Drivers/CMSIS/Include/cmsis_compiler.h:
 ../Core/Inc/motor.h:
 ../Core/Inc/stm32l4s5i_iot01_qspi.h:
-C:/Users/tahas/OneDrive\ -\ McGill\ University/Fall-2025/ECSE-444/Group\ Project/ECSE444_FinalProject/Drivers/Components/../Components/mx25r6435f/mx25r6435f.h:
+C:/Users/ASUS/Desktop/ECSE444_FinalProject/Drivers/Components/../Components/mx25r6435f/mx25r6435f.h:
 ../Core/Inc/stm32l4s5i_iot01_tsensor.h:
 ../Core/Inc/stm32l4s5i_iot01.h:
-C:/Users/tahas/OneDrive\ -\ McGill\ University/Fall-2025/ECSE-444/Group\ Project/ECSE444_FinalProject/Drivers/Components/../Components/hts221/hts221.h:
-C:/Users/tahas/OneDrive\ -\ McGill\ University/Fall-2025/ECSE-444/Group\ Project/ECSE444_FinalProject/Drivers/Components/../Components/hts221/../Common/hsensor.h:
-C:/Users/tahas/OneDrive\ -\ McGill\ University/Fall-2025/ECSE-444/Group\ Project/ECSE444_FinalProject/Drivers/Components/../Components/hts221/../Common/tsensor.h:
+C:/Users/ASUS/Desktop/ECSE444_FinalProject/Drivers/Components/../Components/hts221/hts221.h:
+C:/Users/ASUS/Desktop/ECSE444_FinalProject/Drivers/Components/../Components/hts221/../Common/hsensor.h:
+C:/Users/ASUS/Desktop/ECSE444_FinalProject/Drivers/Components/../Components/hts221/../Common/tsensor.h:
 ../Core/Inc/wifi.h:
 ../Core/Inc/main.h:

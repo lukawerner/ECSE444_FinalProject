@@ -57,7 +57,7 @@ typedef struct {
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define SINEWAVE_LENGTH 32
+#define SINEWAVE_LENGTH 19
 
 #define FLASH_BLOCK_LIMIT 0x10000
 #define FLASH_BLOCK_INDEX_LIMIT 128 // 128 64kB blocks in 64 Mb of flash
@@ -113,6 +113,7 @@ const uint32_t TEMP_READ_PERIOD = 3000; // milliseconds
 // US sensor scanning variables
 const uint32_t DIST_THRESHOLD = 5; // centimeters
 const uint32_t WINDOW_SIZE = 3;
+const uint16_t MAX_DISTANCE = 50;
 ScanPoint baselineData[STEPS];
 volatile uint8_t measuring = 0;
 volatile uint32_t micro_sec;
@@ -120,6 +121,7 @@ volatile uint32_t micro_sec;
 // alarm variables
 static uint8_t alarmTriggered = 0;
 uint16_t sinewave[SINEWAVE_LENGTH];
+uint16_t  sin_Value = 0;
 
 // Queue variables
 //QueueSetHandle_t xQueueSet;
@@ -168,15 +170,11 @@ void StartLogDataTask(void const * argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void LUT_sine_builder(uint16_t sinewave[], uint32_t length) {
-  float32_t max = 2.0f/3.0f * 4095.0f; // 2730 is 2/3 of the max 12 bit unsigned integer, 4095
-  for (int i = 0; i<length; i++) {
-    float32_t angle = 2.0f * PI * i/(float32_t) length;
-    float32_t sine = arm_sin_f32(angle); // varies from -1 to 1
-    sine = (sine + 1.0f) / 2.0f; // varies from  0 to 1
-    sine = max * sine; // varies from 0 to 2730
-    sinewave[i] =  (uint16_t)sine;
-  }
+void LUT_sine_builder() {
+	for (int i = 0; i < 19; i ++) { //note C4
+		sinewave[i] = (uint16_t) ( (arm_sin_f32( (float)sin_Value / 76.0f * 2.0f * PI ) + 1.0f) * 2000.0f );
+	    sin_Value += 4;
+	}
 }
 
 uint16_t getDistance(uint32_t time) {
@@ -305,7 +303,7 @@ int main(void)
 //  WIFI_connection = 0;
 
   // speaker sound array initialization
-  LUT_sine_builder(sinewave, SINEWAVE_LENGTH);
+  LUT_sine_builder();
 
   while (!start); // wait for button press
 
@@ -383,7 +381,7 @@ int main(void)
   alarmTaskHandle = osThreadCreate(osThread(alarmTask), NULL);
 
   /* definition and creation of logDataTask */
-  osThreadDef(logDataTask, StartLogDataTask, osPriorityIdle, 0, 128);
+  osThreadDef(logDataTask, StartLogDataTask, osPriorityHigh, 0, 128);
   logDataTaskHandle = osThreadCreate(osThread(logDataTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
@@ -1045,7 +1043,7 @@ void StartScanTask(void const * argument)
     scanData.distance = take_samples();
     scanData.intruder_detected = 0;
 
-    if (abs(scanData.distance - baselineData[i].distance) > DIST_THRESHOLD) {
+    if (abs(scanData.distance - baselineData[i].distance) > DIST_THRESHOLD && scanData.distance <= MAX_DISTANCE) {
       alarmTriggered = 1;
       xSemaphoreGive(alarmSemaphoreHandle);
       scanData.intruder_detected = 1;
@@ -1176,16 +1174,16 @@ void StartAlarmTask(void const * argument)
 void StartLogDataTask(void const * argument)
 {
   /* USER CODE BEGIN StartLogDataTask */
-	#define BUFFER_SIZE 32
+	#define BUFFER_SIZE 16
 	logSample buffer[BUFFER_SIZE];
-	char UARTbuffer[128];
+	char UARTbuffer[64];
 
 	const uint32_t max_flash_size = FLASH_BLOCK_LIMIT * FLASH_BLOCK_INDEX_LIMIT;
 
   /* Infinite loop */
   for(;;)
   {
-    osDelay(10000); // every 10 seconds
+    osDelay(100); // every 10 seconds
 
     osMutexWait(logFlashMutexHandle, osWaitForever);
 
@@ -1219,7 +1217,7 @@ void StartLogDataTask(void const * argument)
       tail = (tail + numRead*sizeOfSample) % max_flash_size; // increment tail, circling back if needed
 
       for (int i = 0; i<numRead; i++) {
-        snprintf(UARTbuffer, sizeof(UARTbuffer), "Intruder detected at (distance/angle): (%u. %u) sent at timestamp:%lu \r\n", buffer[i].distance, buffer[i].angle, buffer[i].timestamp);
+        snprintf(UARTbuffer, sizeof(UARTbuffer), "Intruder(distance/angle): (%u. %u) timestamp:%lu \r\n", buffer[i].distance, buffer[i].angle, buffer[i].timestamp);
         HAL_UART_Transmit(&huart1, (uint8_t*)UARTbuffer, strlen(UARTbuffer), HAL_MAX_DELAY);
       }
     }

@@ -283,23 +283,26 @@ int main(void)
   HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
 
   // WiFi
-//  WIFI_Init_main();
-//  if (WIFI_JoinNetwork(&hwifi) != WIFI_OK) {
-//    sprintf(output, "Wi-Fi connection FAILED!\r\n");
-//    HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
-//    WIFI_connection = 0;
-//  }
-//  sprintf(output, "Wi-Fi connected successfully!\r\n");
-//  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
-//
-//  sprintf(output, "IP: %s\r\n", hwifi.ipAddress);
-//  HAL_UART_Transmit(&huart1, (uint8_t*)output, strlen(output), HAL_MAX_DELAY);
-//
-//  if (WIFI_connection && WIFI_SetupSocket(&hwifi) != WIFI_OK) {
-//    sprintf(output, "Wi-Fi socket FAILED!\r\n");
-//    HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
-//    WIFI_connection = 0;
-//  }
+  WIFI_Init_main();
+  if (WIFI_JoinNetwork(&hwifi) != WIFI_OK) {
+    sprintf(output, "Wi-Fi connection FAILED!\r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
+    WIFI_connection = 0;
+  }
+  sprintf(output, "Wi-Fi connected successfully!\r\n");
+  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
+
+  sprintf(output, "IP: %s\r\n", hwifi.ipAddress);
+  HAL_UART_Transmit(&huart1, (uint8_t*)output, strlen(output), HAL_MAX_DELAY);
+
+  if (WIFI_connection && WIFI_SetupSocket(&hwifi) != WIFI_OK) {
+    sprintf(output, "Wi-Fi socket FAILED!\r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
+    WIFI_connection = 0;
+  }
+
+  // TESTING
+//  WIFI_connection = 0;
 
   // speaker sound array initialization
   LUT_sine_builder(sinewave, SINEWAVE_LENGTH);
@@ -313,9 +316,10 @@ int main(void)
       baselineData[i].angle = STEP_DEGREE * i;
       baselineData[i].intruder_detected = 0;
 
-      snprintf(output, sizeof(output), "B %d %d\n", (int)baselineData[i].angle, (int)baselineData[i].distance);
-      WIFI_SendTCPData(&hwifi, output);
-
+      if (WIFI_connection) {
+        snprintf(output, sizeof(output), "B %d %d\n", (int)baselineData[i].angle, (int)baselineData[i].distance);
+        WIFI_SendTCPData(&hwifi, output);
+      }
       stepDeg(STEP_DEGREE);
   }
   stepDeg(-SWEEP_DEGREE); // return to starting point

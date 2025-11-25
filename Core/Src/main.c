@@ -130,6 +130,9 @@ uint16_t  sin_Value = 0;
 uint32_t numLogSample = 0;
 uint32_t curr_flash_address = FLASH_START_ADDRESS;
 uint32_t last_read_flash_address = FLASH_START_ADDRESS;
+#define BUFFER_SIZE 16
+logSample buffer[BUFFER_SIZE];
+const uint32_t max_flash_size = FLASH_BLOCK_LIMIT * FLASH_BLOCK_INDEX_LIMIT;
 
 // text buffer for printing
 char output[64];
@@ -961,6 +964,40 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     }
     HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
     alarmTriggered = 0;
+
+    uint32_t head = curr_flash_address;
+    uint32_t tail = last_read_flash_address;
+    uint32_t numRead = 0;
+    uint32_t sizeOfSample = sizeof(logSample);
+
+    while (head != tail) {
+    	if (head < tail) { // we circled back the flash
+    		if (tail + BUFFER_SIZE*sizeof(logSample) >= max_flash_size) {// our buffer reached the end of flash
+                numRead = (max_flash_size - tail)/sizeOfSample;
+            } else { // we aren't at the flash limit yet
+                numRead = BUFFER_SIZE;
+            }
+    	} else { // we didn't circle back
+            if ((head - tail)/sizeOfSample < BUFFER_SIZE)// we don't have enough slots for a full buffer
+            {
+                numRead = (head - tail)/sizeOfSample;
+            }
+            else { // if we have enough slots for one full buffer
+                numRead = BUFFER_SIZE;
+            }
+        }
+
+        if (BSP_QSPI_Read((uint8_t*) buffer, tail, numRead*sizeOfSample) != QSPI_OK) {
+            Error_Handler();
+        }
+        tail = (tail + numRead*sizeOfSample) % max_flash_size; // increment tail, circling back if needed
+
+        for (int i = 0; i<numRead; i++) {
+        	snprintf(output, sizeof(output), "Intruder(distance/angle): (%u. %u) timestamp:%lu \r\n", buffer[i].distance, buffer[i].angle, buffer[i].timestamp);
+            HAL_UART_Transmit(&huart1, (uint8_t*)output, strlen(output), HAL_MAX_DELAY);
+        }
+    }
+    last_read_flash_address = tail;
   }
 }
 

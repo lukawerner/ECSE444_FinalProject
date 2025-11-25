@@ -104,6 +104,8 @@ osMessageQId scanDataQueueHandle;
 osMutexId logFlashMutexHandle;
 osSemaphoreId alarmSemaphoreHandle;
 /* USER CODE BEGIN PV */
+volatile uint8_t start = 0;
+
 // temp sensing variables
 const float32_t TEMP_THRESHOLD = 40;
 const uint32_t TEMP_READ_PERIOD = 3000; // milliseconds
@@ -302,7 +304,7 @@ int main(void)
   // speaker sound array initialization
   LUT_sine_builder(sinewave, SINEWAVE_LENGTH);
 
-
+  while (!start); // wait for button press
 
   // gather baseline room data
   for (int i = 0; i < STEPS; i++) {
@@ -311,7 +313,7 @@ int main(void)
       baselineData[i].angle = STEP_DEGREE * i;
       baselineData[i].intruder_detected = 0;
 
-      snprintf(output, sizeof(output), "B %d %d\n", (int)scanData.angle, (int)scanData.distance);
+      snprintf(output, sizeof(output), "B %d %d\n", (int)baselineData[i].angle, (int)baselineData[i].distance);
       WIFI_SendTCPData(&hwifi, output);
 
       stepDeg(STEP_DEGREE);
@@ -949,6 +951,9 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   if (GPIO_Pin == PB_Pin) {
+    if (!start) {
+      start = 1;
+    }
     HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
     alarmTriggered = 0;
   }

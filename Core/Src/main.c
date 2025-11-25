@@ -135,9 +135,9 @@ char output[64];
 // WIFI variables
 uint32_t lastWifiTick = 0;
 WIFI_HandleTypeDef hwifi;
-char ssid[] = "BELL204"; //"TestLan"; //VIRGIN184";
-char passphrase[] = "64F4DFCE57DD";//"12345678"; //"25235A211337";
-char remoteIpAddress[] = "192.168.2.234";//"192.168.1.100"; //"192.168.2.12"; //"192.168.1.102";
+char ssid[] = "TestLan"; //"TestLan"; //VIRGIN184";
+char passphrase[] = "12345678";//"12345678"; //"25235A211337";
+char remoteIpAddress[] = "192.168.1.100";//"192.168.1.100"; //"192.168.2.12"; //"192.168.1.102";
 uint8_t WIFI_connection = 1;
 
 const uint32_t TIMEOUT = 5000;

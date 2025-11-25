@@ -3,7 +3,7 @@
 ../Core/Src/main.c:188:10:take_samples	4
 ../Core/Src/main.c:203:10:take_samples_calibration	4
 ../Core/Src/main.c:217:13:WIFI_Init_main	1
-../Core/Src/main.c:238:5:main	4
+../Core/Src/main.c:238:5:main	7
 ../Core/Src/main.c:413:6:SystemClock_Config	4
 ../Core/Src/main.c:464:13:MX_DAC1_Init	3
 ../Core/Src/main.c:508:13:MX_I2C2_Init	4

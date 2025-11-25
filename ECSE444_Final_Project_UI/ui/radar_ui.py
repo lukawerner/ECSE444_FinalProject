@@ -33,6 +33,7 @@ class RadarUI:
         self.indicator_line = None
 
         self.intruders = {}
+        self.baselines = {}
 
         self.draw_radar_background()
         self.update_queue()
@@ -109,6 +110,8 @@ class RadarUI:
                 angle = msg["angle"]
                 self.indicator_angle = angle
                 distance_cm = msg["distance"]
+                if distance_cm > MAX_RADAR_DISTANCE_CM:
+                    return
 
                 distance_pixels = (distance_cm / MAX_RADAR_DISTANCE_CM) * self.radar_radius
 
@@ -127,6 +130,27 @@ class RadarUI:
                     fill="red", outline="white"
                 )
                 self.intruders[angle] = dot
+
+            elif msg_type == "baseline":
+                angle = msg["angle"]
+                self.indicator_angle = angle
+                distance_cm = msg["distance"]
+                if distance_cm > MAX_RADAR_DISTANCE_CM:
+                    distance_cm = MAX_RADAR_DISTANCE_CM
+
+                distance_pixels = (distance_cm / MAX_RADAR_DISTANCE_CM) * self.radar_radius
+
+                rad = math.radians(angle)
+                x = self.center_x + distance_pixels * math.cos(rad)
+                y = self.center_y - distance_pixels * math.sin(rad)
+
+                dot_size = 10
+                dot = self.canvas.create_oval(
+                    x - dot_size / 2, y - dot_size / 2,
+                    x + dot_size / 2, y + dot_size / 2,
+                    fill="green", outline="white"
+                )
+                self.baselines[angle] = dot
 
         except Exception as e:
             print(f"Unexpected error in handle_message: {e}")

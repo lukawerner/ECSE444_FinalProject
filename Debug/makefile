@@ -89,8 +89,8 @@ all: main-build
 main-build: ECSE_444_FinalProject.elf secondary-outputs
 
 # Tool invocations
-ECSE_444_FinalProject.elf ECSE_444_FinalProject.map: $(OBJS) $(USER_OBJS) C:\Users\tahas\OneDrive\ -\ McGill\ University\Fall-2025\ECSE-444\Group\ Project\ECSE444_FinalProject\STM32L4S5VITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "ECSE_444_FinalProject.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\tahas\OneDrive - McGill University\Fall-2025\ECSE-444\Group Project\ECSE444_FinalProject\STM32L4S5VITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ECSE_444_FinalProject.map" -Wl,--gc-sections -static -L../Core/Lib --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+ECSE_444_FinalProject.elf ECSE_444_FinalProject.map: $(OBJS) $(USER_OBJS) /Users/tingyichen/STM32CubeIDE/workspace_1.19.0/ECSE_444_FinalProject/STM32L4S5VITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "ECSE_444_FinalProject.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/tingyichen/STM32CubeIDE/workspace_1.19.0/ECSE_444_FinalProject/STM32L4S5VITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ECSE_444_FinalProject.map" -Wl,--gc-sections -static -L../Core/Lib --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

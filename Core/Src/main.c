@@ -283,23 +283,23 @@ int main(void)
   HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
 
   // WiFi
-  WIFI_Init_main();
-  if (WIFI_JoinNetwork(&hwifi) != WIFI_OK) {
-    sprintf(output, "Wi-Fi connection FAILED!\r\n");
-    HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
-    WIFI_connection = 0;
-  }
-  sprintf(output, "Wi-Fi connected successfully!\r\n");
-  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
-
-  sprintf(output, "IP: %s\r\n", hwifi.ipAddress);
-  HAL_UART_Transmit(&huart1, (uint8_t*)output, strlen(output), HAL_MAX_DELAY);
-
-  if (WIFI_connection && WIFI_SetupSocket(&hwifi) != WIFI_OK) {
-    sprintf(output, "Wi-Fi socket FAILED!\r\n");
-    HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
-    WIFI_connection = 0;
-  }
+//  WIFI_Init_main();
+//  if (WIFI_JoinNetwork(&hwifi) != WIFI_OK) {
+//    sprintf(output, "Wi-Fi connection FAILED!\r\n");
+//    HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
+//    WIFI_connection = 0;
+//  }
+//  sprintf(output, "Wi-Fi connected successfully!\r\n");
+//  HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
+//
+//  sprintf(output, "IP: %s\r\n", hwifi.ipAddress);
+//  HAL_UART_Transmit(&huart1, (uint8_t*)output, strlen(output), HAL_MAX_DELAY);
+//
+//  if (WIFI_connection && WIFI_SetupSocket(&hwifi) != WIFI_OK) {
+//    sprintf(output, "Wi-Fi socket FAILED!\r\n");
+//    HAL_UART_Transmit(&huart1, (uint8_t*) output, strlen(output), HAL_MAX_DELAY);
+//    WIFI_connection = 0;
+//  }
 
   // speaker sound array initialization
   LUT_sine_builder(sinewave, SINEWAVE_LENGTH);
@@ -942,6 +942,9 @@ static void MX_GPIO_Init(void)
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

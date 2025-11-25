@@ -131,13 +131,14 @@ uint32_t last_read_flash_address = FLASH_START_ADDRESS;
 
 // text buffer for printing
 char output[64];
+char UARTbuffer[64];
 
 // WIFI variables
 uint32_t lastWifiTick = 0;
 WIFI_HandleTypeDef hwifi;
 char ssid[] = "TestLan"; //"TestLan"; //VIRGIN184";
 char passphrase[] = "12345678";//"12345678"; //"25235A211337";
-char remoteIpAddress[] = "192.168.1.100";//"192.168.1.100"; //"192.168.2.12"; //"192.168.1.102";
+char remoteIpAddress[] = "10.217.85.33"; // 192.168.1.100";//"192.168.1.100"; //"192.168.2.12"; //"192.168.1.102";
 uint8_t WIFI_connection = 1;
 
 const uint32_t TIMEOUT = 5000;
@@ -383,7 +384,7 @@ int main(void)
   alarmTaskHandle = osThreadCreate(osThread(alarmTask), NULL);
 
   /* definition and creation of logDataTask */
-  osThreadDef(logDataTask, StartLogDataTask, osPriorityIdle, 0, 128);
+  osThreadDef(logDataTask, StartLogDataTask, osPriorityHigh, 0, 160);
   logDataTaskHandle = osThreadCreate(osThread(logDataTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
@@ -1176,9 +1177,9 @@ void StartAlarmTask(void const * argument)
 void StartLogDataTask(void const * argument)
 {
   /* USER CODE BEGIN StartLogDataTask */
-	#define BUFFER_SIZE 32
+	#define BUFFER_SIZE 16
 	logSample buffer[BUFFER_SIZE];
-	char UARTbuffer[128];
+
 
 	const uint32_t max_flash_size = FLASH_BLOCK_LIMIT * FLASH_BLOCK_INDEX_LIMIT;
 
@@ -1219,7 +1220,7 @@ void StartLogDataTask(void const * argument)
       tail = (tail + numRead*sizeOfSample) % max_flash_size; // increment tail, circling back if needed
 
       for (int i = 0; i<numRead; i++) {
-        snprintf(UARTbuffer, sizeof(UARTbuffer), "Intruder detected at (distance/angle): (%u. %u) sent at timestamp:%lu \r\n", buffer[i].distance, buffer[i].angle, buffer[i].timestamp);
+        snprintf(UARTbuffer, sizeof(UARTbuffer), "I (%u, %u, %lu)\r\nc", buffer[i].distance, buffer[i].angle, buffer[i].timestamp);
         HAL_UART_Transmit(&huart1, (uint8_t*)UARTbuffer, strlen(UARTbuffer), HAL_MAX_DELAY);
       }
     }

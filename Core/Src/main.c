@@ -46,11 +46,20 @@ typedef struct {
     uint16_t distance;
 } ScanPoint;
 
+typedef struct {
+	uint16_t angle;
+	uint16_t distance;
+	uint32_t timestamp;
+} logSample;
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define SINEWAVE_LENGTH 32
+#define FLASH_BLOCK_LIMIT 0x10000
+#define FLASH_BLOCK_INDEX_LIMIT 128 // 128 64kB blocks in 64 Mb of flash
+#define FLASH_START_ADDRESS 0x00
 
 enum {
     SWEEP_DEGREE = 120,                         // Total sweep in degrees
@@ -85,8 +94,10 @@ osThreadId tempTaskHandle;
 osThreadId scanTaskHandle;
 osThreadId transmitTaskHandle;
 osThreadId alarmTaskHandle;
+osThreadId logDataTaskHandle;
 osMessageQId tempQueueHandle;
 osMessageQId scanDataQueueHandle;
+osMutexId logFlashMutexHandle;
 osSemaphoreId alarmSemaphoreHandle;
 /* USER CODE BEGIN PV */
 const float32_t TEMP_THRESHOLD = 40;
@@ -102,15 +113,19 @@ static uint8_t alarmTriggered = 0;
 uint16_t sinewave[SINEWAVE_LENGTH];
 uint8_t intruder_detected = 0;
 
+uint32_t numLogSample = 0;
+uint32_t curr_flash_address = FLASH_START_ADDRESS;
+uint32_t last_read_flash_address = FLASH_START_ADDRESS;
+
 char output[64];
 
 uint32_t writeAddress = 0;
 
 uint32_t lastWifiTick = 0;
 WIFI_HandleTypeDef hwifi;
-char ssid[] = "TestLan"; //VIRGIN184";
-char passphrase[] = "12345678"; //"25235A211337";
-char remoteIpAddress[] = "192.168.1.100"; //"192.168.2.12"; //"192.168.1.102";
+char ssid[] = "BELL204"; //"TestLan"; //VIRGIN184";
+char passphrase[] = "64F4DFCE57DD";//"12345678"; //"25235A211337";
+char remoteIpAddress[] = "192.168.2.234";//"192.168.1.100"; //"192.168.2.12"; //"192.168.1.102";
 uint8_t WIFI_connection = 1;
 
 const uint32_t TIMEOUT = 5000;
@@ -133,6 +148,7 @@ void StartTempTask(void const * argument);
 void StartScanTask(void const * argument);
 void StartTransmitTask(void const * argument);
 void StartAlarmTask(void const * argument);
+void StartLogDataTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -299,6 +315,11 @@ int main(void)
   }
   /* USER CODE END 2 */
 
+  /* Create the mutex(es) */
+  /* definition and creation of logFlashMutex */
+  osMutexDef(logFlashMutex);
+  logFlashMutexHandle = osMutexCreate(osMutex(logFlashMutex));
+
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
@@ -349,6 +370,10 @@ int main(void)
   /* definition and creation of alarmTask */
   osThreadDef(alarmTask, StartAlarmTask, osPriorityHigh, 0, 128);
   alarmTaskHandle = osThreadCreate(osThread(alarmTask), NULL);
+
+  /* definition and creation of logDataTask */
+  osThreadDef(logDataTask, StartLogDataTask, osPriorityIdle, 0, 128);
+  logDataTaskHandle = osThreadCreate(osThread(logDataTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -1063,6 +1088,38 @@ void StartTransmitTask(void const * argument)
 					snprintf(output, sizeof(output), "I %d %d\n", (int)scanData.angle, (int)scanData.distance);
 					WIFI_SendTCPData(&hwifi, output);
 					intruder_detected = 0;
+
+					logSample intruder_sample;
+					intruder_sample.distance = scanData.distance;
+					intruder_sample.angle = scanData.angle;
+					intruder_sample.timestamp = HAL_GetTick();
+
+					osMutexWait(logFlashMutexHandle, osWaitForever);
+
+					if (curr_flash_address >= (FLASH_BLOCK_INDEX_LIMIT * FLASH_BLOCK_LIMIT)) // flash is full
+					{
+						curr_flash_address = FLASH_START_ADDRESS;
+						numLogSample = 0;
+					}
+
+					if (curr_flash_address % FLASH_BLOCK_LIMIT == 0) // we are at the start of a block
+					{
+						if (BSP_QSPI_Erase_Block(curr_flash_address)!=QSPI_OK)
+						{
+							osMutexRelease(logFlashMutexHandle);
+							Error_Handler();
+						}
+					}
+					if (BSP_QSPI_Write((uint8_t*)&intruder_sample, curr_flash_address, sizeof(intruder_sample)) != QSPI_OK)
+					{
+						osMutexRelease(logFlashMutexHandle);
+						Error_Handler();
+					}
+					curr_flash_address += sizeof(intruder_sample);
+					numLogSample++;
+
+
+					osMutexRelease(logFlashMutexHandle);
 				} else {
 					snprintf(output, sizeof(output), "N %d\n", (int)scanData.angle);
 					WIFI_SendTCPData(&hwifi, output);
@@ -1091,6 +1148,83 @@ void StartAlarmTask(void const * argument)
     }
   }
   /* USER CODE END StartAlarmTask */
+}
+
+/* USER CODE BEGIN Header_StartLogDataTask */
+/**
+* @brief Function implementing the logDataTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartLogDataTask */
+void StartLogDataTask(void const * argument)
+{
+  /* USER CODE BEGIN StartLogDataTask */
+	#define BUFFER_SIZE 32
+	logSample buffer[BUFFER_SIZE];
+	char UARTbuffer[128];
+
+	const uint32_t max_flash_size = FLASH_BLOCK_LIMIT * FLASH_BLOCK_INDEX_LIMIT;
+
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(10000); // every 10 seconds
+
+    osMutexWait(logFlashMutexHandle, osWaitForever);
+
+    uint32_t head = curr_flash_address;
+    uint32_t tail = last_read_flash_address;
+    uint32_t numRead = 0;
+    uint32_t sizeOfSample = sizeof(logSample);
+
+    osMutexRelease(logFlashMutexHandle);
+
+    while (head != tail)
+    {
+    	if (head < tail) // we circled back the flash
+    	{
+        	if (tail + BUFFER_SIZE*sizeof(logSample) >= max_flash_size) // our buffer reached the end of flash
+        	{
+        		numRead = (max_flash_size - tail)/sizeOfSample;
+        	}
+        	else // we aren't at the flash limit yet
+        	{
+        		numRead = BUFFER_SIZE;
+        	}
+    	}
+
+    	else // we didn't circle back
+    	{
+			if ((head - tail)/sizeOfSample < BUFFER_SIZE)// we don't have enough slots for a full buffer
+			{
+				numRead = (head - tail)/sizeOfSample;
+			}
+			else // if we have enough slots for one full buffer
+			{
+				numRead = BUFFER_SIZE;
+			}
+
+    	}
+
+    	if (BSP_QSPI_Read((uint8_t*) buffer, tail, numRead*sizeOfSample) != QSPI_OK)
+    	{
+    		Error_Handler();
+    	}
+    	tail = (tail + numRead*sizeOfSample) % max_flash_size; // increment tail, circling back if needed
+
+    	for (int i = 0; i<numRead; i++)
+    	{
+    		snprintf(UARTbuffer, sizeof(UARTbuffer), "Intruder detected at (distance/angle): (%u. %u) sent at timestamp:%lu \r\n", buffer[i].distance, buffer[i].angle, buffer[i].timestamp);
+    		HAL_UART_Transmit(&huart1, (uint8_t*)UARTbuffer, strlen(UARTbuffer), HAL_MAX_DELAY);
+    	}
+
+    }
+    osMutexWait(logFlashMutexHandle, osWaitForever);
+    last_read_flash_address = tail;
+    osMutexRelease(logFlashMutexHandle);
+  }
+  /* USER CODE END StartLogDataTask */
 }
 
 /**

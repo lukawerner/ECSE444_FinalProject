@@ -63,34 +63,34 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := ECSE_444_FinalProject
+BUILD_ARTIFACT_NAME := ECSE444_FinalProject
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-ECSE_444_FinalProject.elf \
+ECSE444_FinalProject.elf \
 
 MAP_FILES += \
-ECSE_444_FinalProject.map \
+ECSE444_FinalProject.map \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-ECSE_444_FinalProject.list \
+ECSE444_FinalProject.list \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: ECSE_444_FinalProject.elf secondary-outputs
+main-build: ECSE444_FinalProject.elf secondary-outputs
 
 # Tool invocations
-ECSE_444_FinalProject.elf ECSE_444_FinalProject.map: $(OBJS) $(USER_OBJS) C:\Users\tahas\OneDrive\ -\ McGill\ University\Fall-2025\ECSE-444\Group\ Project\ECSE444_FinalProject\STM32L4S5VITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "ECSE_444_FinalProject.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\tahas\OneDrive - McGill University\Fall-2025\ECSE-444\Group Project\ECSE444_FinalProject\STM32L4S5VITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ECSE_444_FinalProject.map" -Wl,--gc-sections -static -L../Core/Lib --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+ECSE444_FinalProject.elf ECSE444_FinalProject.map: $(OBJS) $(USER_OBJS) C:\Users\User\STM32CubeIDE\workspace_2.0.0\ECSE444_FinalProject\STM32L4S5VITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "ECSE444_FinalProject.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\User\STM32CubeIDE\workspace_2.0.0\ECSE444_FinalProject\STM32L4S5VITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ECSE444_FinalProject.map" -Wl,--gc-sections -static -L../Core/Lib --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -99,14 +99,14 @@ default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-ECSE_444_FinalProject.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "ECSE_444_FinalProject.list"
+ECSE444_FinalProject.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "ECSE444_FinalProject.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) ECSE_444_FinalProject.elf ECSE_444_FinalProject.list ECSE_444_FinalProject.map default.size.stdout
+	-$(RM) ECSE444_FinalProject.elf ECSE444_FinalProject.list ECSE444_FinalProject.map default.size.stdout
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)

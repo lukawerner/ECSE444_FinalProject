@@ -98,7 +98,6 @@ osThreadId tempTaskHandle;
 osThreadId scanTaskHandle;
 osThreadId transmitTaskHandle;
 osThreadId alarmTaskHandle;
-osThreadId logDataTaskHandle;
 osMessageQId tempQueueHandle;
 osMessageQId scanDataQueueHandle;
 osMutexId logFlashMutexHandle;
@@ -111,7 +110,7 @@ const float32_t TEMP_THRESHOLD = 40;
 const uint32_t TEMP_READ_PERIOD = 3000; // milliseconds
 
 // US sensor scanning variables
-const uint32_t DIST_THRESHOLD = 5; // centimeters
+const uint32_t DIST_THRESHOLD = 10; // centimeters
 const uint32_t WINDOW_SIZE = 3;
 const uint16_t MAX_DISTANCE = 50;
 ScanPoint baselineData[STEPS];
@@ -165,7 +164,6 @@ void StartTempTask(void const * argument);
 void StartScanTask(void const * argument);
 void StartTransmitTask(void const * argument);
 void StartAlarmTask(void const * argument);
-void StartLogDataTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -364,11 +362,11 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityLow, 0, 128);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* definition and creation of tempTask */
-  osThreadDef(tempTask, StartTempTask, osPriorityAboveNormal, 0, 128);
+  osThreadDef(tempTask, StartTempTask, osPriorityNormal, 0, 128);
   tempTaskHandle = osThreadCreate(osThread(tempTask), NULL);
 
   /* definition and creation of scanTask */
@@ -376,16 +374,12 @@ int main(void)
   scanTaskHandle = osThreadCreate(osThread(scanTask), NULL);
 
   /* definition and creation of transmitTask */
-  osThreadDef(transmitTask, StartTransmitTask, osPriorityAboveNormal, 0, 128);
+  osThreadDef(transmitTask, StartTransmitTask, osPriorityNormal, 0, 128);
   transmitTaskHandle = osThreadCreate(osThread(transmitTask), NULL);
 
   /* definition and creation of alarmTask */
-  osThreadDef(alarmTask, StartAlarmTask, osPriorityHigh, 0, 128);
+  osThreadDef(alarmTask, StartAlarmTask, osPriorityNormal, 0, 128);
   alarmTaskHandle = osThreadCreate(osThread(alarmTask), NULL);
-
-  /* definition and creation of logDataTask */
-  osThreadDef(logDataTask, StartLogDataTask, osPriorityHigh, 0, 128);
-  logDataTaskHandle = osThreadCreate(osThread(logDataTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -1133,7 +1127,7 @@ void StartTransmitTask(void const * argument)
     }
 
     if (xQueueReceive(scanDataQueueHandle, &scanData, 0)== pdPASS) {
-      sprintf(output, "angle: %u, distance: %u\r\n", scanData.angle, scanData.distance);
+      sprintf(output, "angle: %u, distance: %u, I: %u\r\n", scanData.angle, scanData.distance, scanData.intruder_detected);
       HAL_UART_Transmit(&huart1, (uint8_t*)output, strlen(output), HAL_MAX_DELAY);
       if (WIFI_connection) {
 
@@ -1194,75 +1188,11 @@ void StartAlarmTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    if(xSemaphoreTake(alarmSemaphoreHandle, portMAX_DELAY) == pdPASS){
+    if(xSemaphoreTake(alarmSemaphoreHandle, portMAX_DELAY) == pdTRUE && alarmTriggered == 1){
       HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*)sinewave, SINEWAVE_LENGTH, DAC_ALIGN_12B_R);
     }
   }
   /* USER CODE END StartAlarmTask */
-}
-
-/* USER CODE BEGIN Header_StartLogDataTask */
-/**
-* @brief Function implementing the logDataTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartLogDataTask */
-void StartLogDataTask(void const * argument)
-{
-  /* USER CODE BEGIN StartLogDataTask */
-	#define BUFFER_SIZE 16
-	logSample buffer[BUFFER_SIZE];
-	char UARTbuffer[64];
-
-	const uint32_t max_flash_size = FLASH_BLOCK_LIMIT * FLASH_BLOCK_INDEX_LIMIT;
-
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(100); // every 10 seconds
-
-    osMutexWait(logFlashMutexHandle, osWaitForever);
-
-    uint32_t head = curr_flash_address;
-    uint32_t tail = last_read_flash_address;
-    uint32_t numRead = 0;
-    uint32_t sizeOfSample = sizeof(logSample);
-
-    osMutexRelease(logFlashMutexHandle);
-
-    while (head != tail) {
-      if (head < tail) { // we circled back the flash
-        if (tail + BUFFER_SIZE*sizeof(logSample) >= max_flash_size) {// our buffer reached the end of flash
-            numRead = (max_flash_size - tail)/sizeOfSample;
-        } else { // we aren't at the flash limit yet
-            numRead = BUFFER_SIZE;
-        }
-      } else { // we didn't circle back
-        if ((head - tail)/sizeOfSample < BUFFER_SIZE)// we don't have enough slots for a full buffer
-        {
-            numRead = (head - tail)/sizeOfSample;
-        }
-        else { // if we have enough slots for one full buffer
-            numRead = BUFFER_SIZE;
-        }
-      }
-
-      if (BSP_QSPI_Read((uint8_t*) buffer, tail, numRead*sizeOfSample) != QSPI_OK) {
-        Error_Handler();
-      }
-      tail = (tail + numRead*sizeOfSample) % max_flash_size; // increment tail, circling back if needed
-
-      for (int i = 0; i<numRead; i++) {
-        snprintf(UARTbuffer, sizeof(UARTbuffer), "Intruder(distance/angle): (%u. %u) timestamp:%lu \r\n", buffer[i].distance, buffer[i].angle, buffer[i].timestamp);
-        HAL_UART_Transmit(&huart1, (uint8_t*)UARTbuffer, strlen(UARTbuffer), HAL_MAX_DELAY);
-      }
-    }
-    osMutexWait(logFlashMutexHandle, osWaitForever);
-    last_read_flash_address = tail;
-    osMutexRelease(logFlashMutexHandle);
-  }
-  /* USER CODE END StartLogDataTask */
 }
 
 /**
